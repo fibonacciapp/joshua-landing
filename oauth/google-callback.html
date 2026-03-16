@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google OAuth Callback</title>
+</head>
+<body>
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get('code');
+    var state = params.get('state');
+    var error = params.get('error');
+
+    if (!window.opener) {
+      document.body.textContent = error
+        ? 'Authentication failed: ' + error + '. You may close this window.'
+        : 'Authentication complete. You may close this window.';
+      return;
+    }
+
+    // Extract caller origin from state (encoded by GoogleConnectModal).
+    // In production, the callback runs on appjoshua.com but the opener is
+    // a tenant subdomain (e.g. zafiro.appjoshua.com), so we cannot read
+    // window.opener.location.origin (cross-origin). The state carries it.
+    var targetOrigin = '*';
+    try {
+      var decoded = JSON.parse(atob(state));
+      if (decoded && decoded.origin) {
+        targetOrigin = decoded.origin;
+      }
+    } catch (e) {
+      // Fallback: try same-origin (works in dev)
+      try { targetOrigin = window.opener.location.origin; } catch (e2) { /* cross-origin */ }
+    }
+
+    var message = error
+      ? { type: 'google-oauth-error', error: error }
+      : { type: 'google-oauth-success', code: code, state: state };
+
+    window.opener.postMessage(message, targetOrigin);
+
+    window.close();
+  })();
+</script>
+</body>
+</html>
